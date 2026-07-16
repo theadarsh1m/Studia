@@ -47,7 +47,7 @@ export function Header() {
             <Sparkles className="w-4.5 h-4.5 transition-transform duration-500 group-hover:rotate-12" />
           </div>
           <span className="font-semibold text-sm tracking-tight text-foreground transition-colors">
-            Study Assistant <span className="text-muted-foreground font-normal">AI</span>
+            Studia <span className="text-muted-foreground font-normal">AI</span>
           </span>
         </Link>
 

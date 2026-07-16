@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Study Assistant AI - Transform Your Notes",
+  title: "Studia - AI Study Assistant",
   description: "A premium AI-powered study assistant platform that converts notes into interactive study materials, flashcards, and quizzes.",
 };
 
