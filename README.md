@@ -1,6 +1,8 @@
-# Studia AI — AI-Powered Study Assistant
+# aiStudi — AI-Powered Study Assistant
 
-**Studia AI** is a premium, fully interactive, and responsive educational product that transforms lecture notes, textbook passages, or transcripts into structured flashcards and quizzes using **Google Gemini 3.1 Flash Lite**. 
+[GitHub Repository](https://github.com/theadarsh1m/aiStudi)
+
+**aiStudi** is a premium, fully interactive, and responsive educational product that transforms lecture notes, textbook passages, or transcripts into structured flashcards and quizzes using **Google Gemini 3.1 Flash Lite**. 
 
 Built with Next.js, Tailwind CSS, and Framer Motion, it features offline session persistence, automated request timeouts, user-friendly cancellation gates, loading skeletons, and robust class-based React error boundaries.
 

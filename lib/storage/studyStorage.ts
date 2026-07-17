@@ -1,7 +1,7 @@
 import { SafeStorage } from "./storage";
 import { studySessionSchema, StudySessionData } from "../../types/storage";
 
-const SESSION_KEY = "studia_study_session";
+const SESSION_KEY = "aistudi_study_session";
 const STORAGE_VERSION = 1;
 
 export class StudyStorage {

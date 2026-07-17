@@ -31,7 +31,7 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleReset = () => {
     // Clear study storage to recover from bad state
     try {
-      localStorage.removeItem("studia-study-session");
+      localStorage.removeItem("aistudi_study_session");
     } catch {}
     // Force reload
     window.location.reload();

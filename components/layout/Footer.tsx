@@ -10,7 +10,7 @@ export function Footer() {
         {/* Left Side */}
         <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
           <Sparkles className="w-4 h-4 text-zinc-400 dark:text-zinc-600" />
-          <span>&copy; {currentYear} Studia AI. All rights reserved.</span>
+          <span>&copy; {currentYear} aiStudi. All rights reserved.</span>
         </div>
 
         {/* Right Side - Tech Stack */}

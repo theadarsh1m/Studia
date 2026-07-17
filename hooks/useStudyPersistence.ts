@@ -169,7 +169,7 @@ export function useStudyPersistence() {
       const a = document.createElement("a");
       a.href = url;
       const safeTitle = session.material.title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      a.download = `studia-session-${safeTitle}.json`;
+      a.download = `aistudi-session-${safeTitle}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

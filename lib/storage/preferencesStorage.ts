@@ -1,7 +1,7 @@
 import { SafeStorage } from "./storage";
 import { preferencesSchema, PreferencesData } from "../../types/storage";
 
-const PREFS_KEY = "studia_preferences";
+const PREFS_KEY = "aistudi_preferences";
 
 export class PreferencesStorage {
   static get(): PreferencesData {
