@@ -1,59 +1,69 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Star, Bookmark } from "lucide-react";
-import { StudyMaterial, Flashcard as FlashcardType } from "@/lib/types/study";
+import { StudyMaterial } from "@/lib/types/study";
 import { Flashcard } from "./Flashcard";
 import { FlashcardControls } from "./FlashcardControls";
 import { FlashcardProgress } from "./FlashcardProgress";
 import { FlashcardStats } from "./FlashcardStats";
 import { Button } from "@/components/ui/Button";
+import { useFlashcardPersistence } from "@/hooks/useFlashcardPersistence";
+import { FlashcardProgressData } from "@/types/storage";
 
 interface FlashcardContainerProps {
   result: StudyMaterial;
+  initialProgress?: FlashcardProgressData;
+  onSaveProgress?: (progress: FlashcardProgressData) => void;
 }
 
-interface FlashcardItem extends FlashcardType {
-  originalIndex: number;
-}
+export function FlashcardContainer({
+  result,
+  initialProgress,
+  onSaveProgress,
+}: FlashcardContainerProps) {
+  const defaultProgress: FlashcardProgressData = {
+    currentIndex: 0,
+    isFlipped: false,
+    bookmarks: {},
+    difficultyStatus: {},
+    viewedCards: [0],
+    isShuffled: false,
+    shuffledOrder: [],
+    filterBookmarks: false,
+  };
 
-export function FlashcardContainer({ result }: FlashcardContainerProps) {
-  // Underlying decks state
-  const [cards, setCards] = useState<FlashcardItem[]>([]);
-  const [originalCards, setOriginalCards] = useState<FlashcardItem[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [isShuffled, setIsShuffled] = useState(false);
-  const [filterBookmarks, setFilterBookmarks] = useState(false);
-  
-  // Persistence caches keyed by the card's originalIndex
-  const [bookmarks, setBookmarks] = useState<Record<number, boolean>>({});
-  const [status, setStatus] = useState<Record<number, "easy" | "medium" | "hard">>({});
-  const [viewedCards, setViewedCards] = useState<Set<number>>(new Set());
-  
-  // Transition variables
-  const [direction, setDirection] = useState<"left" | "right">("right");
+  const progressToUse = initialProgress || defaultProgress;
+  const noop = () => {};
+  const onSaveToUse = onSaveProgress || noop;
 
-  // Track previous result to sync state during rendering (React-recommended pattern, avoids set-state-in-effect)
-  const [prevResult, setPrevResult] = useState<StudyMaterial | null>(null);
-
-  if (result !== prevResult) {
-    setPrevResult(result);
-    if (result?.flashcards) {
-      const initialized = result.flashcards.map((card, idx) => ({
-        ...card,
-        originalIndex: idx,
-      }));
-      setCards(initialized);
-      setOriginalCards(initialized);
-      setCurrentIndex(0);
-      setIsFlipped(false);
-      setIsShuffled(false);
-      setFilterBookmarks(false);
-      setViewedCards(new Set([0])); // Start by viewing the first card
-    }
-  }
+  // Delegate state tracking to the custom persistence hook
+  const {
+    cards,
+    setCards,
+    originalCards,
+    currentIndex,
+    setCurrentIndex,
+    isFlipped,
+    setIsFlipped,
+    isShuffled,
+    setIsShuffled,
+    filterBookmarks,
+    setFilterBookmarks,
+    bookmarks,
+    setBookmarks,
+    status,
+    setStatus,
+    viewedCards,
+    setViewedCards,
+    direction,
+    setDirection,
+  } = useFlashcardPersistence({
+    result,
+    initialProgress: progressToUse,
+    onSave: onSaveToUse,
+  });
 
   // Define filter logic
   const bookmarkedCards = cards.filter((card) => bookmarks[card.originalIndex]);
@@ -82,7 +92,7 @@ export function FlashcardContainer({ result }: FlashcardContainerProps) {
         });
       }, 100);
     }
-  }, [currentIndex, activeDeck]);
+  }, [currentIndex, activeDeck, setCurrentIndex, setIsFlipped, setDirection, setViewedCards]);
 
   const handlePrevious = useCallback(() => {
     if (currentIndex > 0) {
@@ -101,7 +111,7 @@ export function FlashcardContainer({ result }: FlashcardContainerProps) {
         });
       }, 100);
     }
-  }, [currentIndex, activeDeck]);
+  }, [currentIndex, activeDeck, setCurrentIndex, setIsFlipped, setDirection, setViewedCards]);
 
   const handleRestart = useCallback(() => {
     setCurrentIndex(0);
@@ -113,11 +123,11 @@ export function FlashcardContainer({ result }: FlashcardContainerProps) {
       }
       return next;
     });
-  }, [cards]);
+  }, [cards, setCurrentIndex, setIsFlipped, setViewedCards]);
 
   const handleFlip = useCallback(() => {
     setIsFlipped((prev) => !prev);
-  }, []);
+  }, [setIsFlipped]);
 
   const handleShuffle = useCallback(() => {
     if (isShuffled) {
@@ -155,21 +165,21 @@ export function FlashcardContainer({ result }: FlashcardContainerProps) {
       }
     }
     setIsFlipped(false);
-  }, [isShuffled, cards, currentCard, originalCards]);
+  }, [isShuffled, cards, currentCard, originalCards, setCards, setIsShuffled, setCurrentIndex, setViewedCards, setIsFlipped]);
 
   const handleToggleBookmark = useCallback((origIdx: number) => {
     setBookmarks((prev) => ({
       ...prev,
       [origIdx]: !prev[origIdx],
     }));
-  }, []);
+  }, [setBookmarks]);
 
   const handleRateDifficulty = useCallback((origIdx: number, rating: "easy" | "medium" | "hard") => {
     setStatus((prev) => ({
       ...prev,
       [origIdx]: rating,
     }));
-  }, []);
+  }, [setStatus]);
 
   // Keyboard Navigation handler
   useEffect(() => {

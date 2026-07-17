@@ -1,36 +1,74 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle } from "lucide-react";
-import { StudyMaterial, QuizQuestion as QuizQuestionType } from "@/lib/types/study";
+import { StudyMaterial } from "@/lib/types/study";
 import { QuizQuestion } from "./QuizQuestion";
 import { QuizProgress } from "./QuizProgress";
 import { QuizControls } from "./QuizControls";
 import { QuizSummary } from "./QuizSummary";
 import { Button } from "@/components/ui/Button";
+import { useQuizPersistence } from "@/hooks/useQuizPersistence";
+import { QuizProgressData } from "@/types/storage";
 
 interface QuizContainerProps {
   result: StudyMaterial;
   onBackToFlashcards: () => void;
+  initialProgress?: QuizProgressData;
+  onSaveProgress?: (progress: QuizProgressData) => void;
 }
 
-export function QuizContainer({ result, onBackToFlashcards }: QuizContainerProps) {
-  // Master state
-  const [activeQuestions, setActiveQuestions] = useState<QuizQuestionType[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [isAnswered, setIsAnswered] = useState(false);
-  const [mode, setMode] = useState<"quiz" | "summary">("quiz");
+export function QuizContainer({
+  result,
+  onBackToFlashcards,
+  initialProgress,
+  onSaveProgress,
+}: QuizContainerProps) {
+  const defaultProgress: QuizProgressData = {
+    currentIndex: 0,
+    selectedAnswer: null,
+    isAnswered: false,
+    mode: "quiz",
+    correctCount: 0,
+    incorrectCount: 0,
+    wrongQuestionsIndex: [],
+    activeQuestionsIndex: [],
+    durationStr: "00:00",
+    elapsedTimeOffset: 0,
+    startTime: 0,
+  };
 
-  // Scores & wrong questions trackers
-  const [correctCount, setCorrectCount] = useState(0);
-  const [incorrectCount, setIncorrectCount] = useState(0);
-  const [wrongQuestions, setWrongQuestions] = useState<QuizQuestionType[]>([]);
+  const progressToUse = initialProgress || defaultProgress;
+  const noop = () => {};
+  const onSaveToUse = onSaveProgress || noop;
 
-  // Time elapsed variables tracked via ref (pure React pattern, avoids render errors)
-  const startTimeRef = useRef(0);
-  const [durationStr, setDurationStr] = useState("00:00");
+  // Delegate state tracking to the custom persistence hook
+  const {
+    activeQuestions,
+    setActiveQuestions,
+    currentIndex,
+    setCurrentIndex,
+    selectedAnswer,
+    setSelectedAnswer,
+    isAnswered,
+    setIsAnswered,
+    mode,
+    setMode,
+    correctCount,
+    setCorrectCount,
+    incorrectCount,
+    setIncorrectCount,
+    wrongQuestions,
+    setWrongQuestions,
+    durationStr,
+    setDurationStr,
+    startTimeRef,
+  } = useQuizPersistence({
+    result,
+    initialProgress: progressToUse,
+    onSave: onSaveToUse,
+  });
 
   // Reset/Initialize quiz state
   const handleRestart = useCallback(() => {
@@ -45,28 +83,7 @@ export function QuizContainer({ result, onBackToFlashcards }: QuizContainerProps
       startTimeRef.current = Date.now();
       setMode("quiz");
     }
-  }, [result]);
-
-  // Sync state initialization upon loading results
-  const [prevResult, setPrevResult] = useState<StudyMaterial | null>(null);
-  if (result !== prevResult) {
-    setPrevResult(result);
-    if (result?.quiz) {
-      setActiveQuestions(result.quiz);
-      setCurrentIndex(0);
-      setSelectedAnswer(null);
-      setIsAnswered(false);
-      setCorrectCount(0);
-      setIncorrectCount(0);
-      setWrongQuestions([]);
-      setMode("quiz");
-    }
-  }
-
-  // Initialize start time via useEffect to avoid impure render calls
-  useEffect(() => {
-    startTimeRef.current = Date.now();
-  }, [result]);
+  }, [result, setActiveQuestions, setCurrentIndex, setSelectedAnswer, setIsAnswered, setCorrectCount, setIncorrectCount, setWrongQuestions, setMode, startTimeRef]);
 
   // Handle option selection
   const handleSelectOption = useCallback((optionIndex: number) => {
@@ -84,7 +101,7 @@ export function QuizContainer({ result, onBackToFlashcards }: QuizContainerProps
       setIncorrectCount((prev) => prev + 1);
       setWrongQuestions((prev) => [...prev, question]);
     }
-  }, [isAnswered, activeQuestions, currentIndex]);
+  }, [isAnswered, activeQuestions, currentIndex, setSelectedAnswer, setIsAnswered, setCorrectCount, setIncorrectCount, setWrongQuestions]);
 
   const handleNext = useCallback(() => {
     if (currentIndex < activeQuestions.length - 1) {
@@ -92,7 +109,7 @@ export function QuizContainer({ result, onBackToFlashcards }: QuizContainerProps
       setIsAnswered(false);
       setCurrentIndex((prev) => prev + 1);
     }
-  }, [currentIndex, activeQuestions.length]);
+  }, [currentIndex, activeQuestions.length, setSelectedAnswer, setIsAnswered, setCurrentIndex]);
 
   const handleFinish = useCallback(() => {
     const elapsedMs = Date.now() - startTimeRef.current;
@@ -101,7 +118,7 @@ export function QuizContainer({ result, onBackToFlashcards }: QuizContainerProps
     const secs = (totalSecs % 60).toString().padStart(2, "0");
     setDurationStr(`${mins}:${secs}`);
     setMode("summary");
-  }, []);
+  }, [setDurationStr, setMode, startTimeRef]);
 
   const handleRetestIncorrect = useCallback(() => {
     if (wrongQuestions.length > 0) {
@@ -115,7 +132,7 @@ export function QuizContainer({ result, onBackToFlashcards }: QuizContainerProps
       startTimeRef.current = Date.now();
       setMode("quiz");
     }
-  }, [wrongQuestions]);
+  }, [wrongQuestions, setActiveQuestions, setWrongQuestions, setCurrentIndex, setSelectedAnswer, setIsAnswered, setCorrectCount, setIncorrectCount, setMode, startTimeRef]);
 
   // Keyboard Shortcuts handler
   useEffect(() => {

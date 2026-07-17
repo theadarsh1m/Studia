@@ -63,18 +63,22 @@ export class StudyService {
         ? (error as { status: unknown }).status
         : undefined;
 
-      // If the model fails due to 404 / retirement, attempt automatic fallback to gemini-3.1-flash-lite
-      const isRetiredOrMissing =
-        errStatus === 404 ||
-        errMsg.includes("404") ||
-        errMsg.includes("not available") ||
-        errMsg.includes("no longer available") ||
-        errMsg.includes("not found");
-      
-      const currentModelName = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+      // If the primary model fails for ANY reason, attempt fallback cascades
+      const currentModelName = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
 
-      if (isRetiredOrMissing && currentModelName === "gemini-2.5-flash-lite") {
-        console.warn("gemini-2.5-flash-lite is retired or unavailable. Falling back to gemini-3.1-flash-lite...");
+      if (currentModelName !== "gemini-3.5-flash") {
+        console.warn(`Primary model ${currentModelName} failed: ${errMsg}. Falling back to gemini-3.5-flash...`);
+        try {
+          const fallbackModel = genAI.getGenerativeModel({
+            model: "gemini-3.5-flash",
+          });
+          return await this.executeGeneration(fallbackModel, prompt, signal);
+        } catch (fallbackError: unknown) {
+          console.error("Fallback to gemini-3.5-flash failed:", fallbackError);
+        }
+      } else {
+        // If gemini-3.5-flash itself fails, fallback to gemini-3.1-flash-lite
+        console.warn(`Primary model gemini-3.5-flash failed: ${errMsg}. Falling back to gemini-3.1-flash-lite...`);
         try {
           const fallbackModel = genAI.getGenerativeModel({
             model: "gemini-3.1-flash-lite",

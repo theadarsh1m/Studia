@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { X, Sparkles, Loader2, BookOpen, GraduationCap } from "lucide-react";
+import { X, Sparkles, Loader2, BookOpen, GraduationCap, Clock, Download, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -11,27 +11,82 @@ import { useAutoResize } from "@/hooks/use-auto-resize";
 import { StudyMaterial } from "@/lib/types/study";
 import { FlashcardContainer } from "@/components/flashcards/FlashcardContainer";
 import { QuizContainer } from "@/components/quiz/QuizContainer";
+import { useStudyPersistence } from "@/hooks/useStudyPersistence";
+import { Features } from "./Features";
+import { EmptyState } from "./EmptyState";
 
 export function StudyInput() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<StudyMaterial | null>(null);
   const [activeTab, setActiveTab] = useState<"flashcards" | "quiz">("flashcards");
+  const [showResetModal, setShowResetModal] = useState(false);
   
   const textareaRef = useAutoResize(text);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
 
   const maxChars = 5000;
   const characterCount = text.length;
 
+  // Master persistence state hook
+  const {
+    session,
+    isLoaded,
+    relativeTime,
+    createNewSession,
+    saveFlashcardProgress,
+    saveQuizProgress,
+    resetSession,
+    exportSession,
+    importSession,
+  } = useStudyPersistence();
+
+  // Cancel ongoing requests on unmount
   useEffect(() => {
-    // Abort ongoing requests when component unmounts
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
   }, []);
+
+  // Sync result & input notes from loaded session state
+  useEffect(() => {
+    if (isLoaded) {
+      setTimeout(() => {
+        if (session) {
+          setResult(session.material);
+          setText(session.originalNotes);
+        } else {
+          setResult(null);
+          setText("");
+        }
+      }, 0);
+    }
+  }, [isLoaded, session]);
+
+  // Handle Escape key to close the reset modal
+  useEffect(() => {
+    if (!showResetModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowResetModal(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showResetModal]);
+
+  // Focus the cancel button when the reset modal opens for accessibility
+  useEffect(() => {
+    if (showResetModal) {
+      setTimeout(() => {
+        cancelButtonRef.current?.focus();
+      }, 50);
+    }
+  }, [showResetModal]);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,17 +95,14 @@ export function StudyInput() {
       return;
     }
 
-    // Cancel the previous ongoing request if any
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
 
-    // Create a new AbortController
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
     setLoading(true);
-    setResult(null);
 
     const toastId = toast.loading("Generating study materials...", {
       description: "Calling Gemini 2.5 Flash Lite API...",
@@ -72,7 +124,8 @@ export function StudyInput() {
         throw new Error(resData.error || `HTTP error! status: ${response.status}`);
       }
 
-      setResult(resData.data);
+      // Persist the newly validated study material
+      createNewSession(text.trim(), resData.data);
       setActiveTab("flashcards");
       
       toast.success("Study materials generated successfully!", {
@@ -83,7 +136,6 @@ export function StudyInput() {
     } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
       if (error.name === "AbortError") {
-        // Request was aborted, don't show any error toasts
         return;
       }
 
@@ -94,14 +146,13 @@ export function StudyInput() {
         duration: 5000,
       });
     } finally {
-      // Only clear loading state if the active controller matches the one from this invocation
       if (abortControllerRef.current === controller) {
         setLoading(false);
       }
     }
   };
 
-  const handleClear = () => {
+  const handleClearInput = () => {
     setText("");
     if (textareaRef.current) {
       textareaRef.current.focus();
@@ -112,6 +163,23 @@ export function StudyInput() {
     setText(
       "Photosynthesis is the process by which green plants convert sunlight into chemical energy. During this process, carbon dioxide and water are combined to produce glucose and oxygen, driven by light energy captured by chlorophyll."
     );
+  };
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const resultStr = event.target?.result as string;
+      if (resultStr) {
+        importSession(resultStr);
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   return (
@@ -130,7 +198,7 @@ export function StudyInput() {
                 aria-label="Study notes input"
               />
 
-              {/* Clear button (inside text area, only visible if text is present and not loading) */}
+              {/* Clear button */}
               <AnimatePresence>
                 {text.length > 0 && !loading && (
                   <motion.div
@@ -144,7 +212,7 @@ export function StudyInput() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={handleClear}
+                      onClick={handleClearInput}
                       className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50"
                       aria-label="Clear text input"
                     >
@@ -160,16 +228,31 @@ export function StudyInput() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-xs text-muted-foreground/80 flex items-center gap-1.5"
+                className="text-xs text-muted-foreground/80 flex flex-wrap items-center gap-1.5"
               >
                 <span>Need a sample?</span>
                 <button
                   type="button"
                   onClick={handlePasteExample}
-                  className="font-medium text-foreground hover:underline cursor-pointer"
+                  className="font-medium text-foreground hover:underline cursor-pointer focus:outline-none"
                 >
                   Try an example
                 </button>
+                <span>or</span>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="font-medium text-foreground hover:underline cursor-pointer focus:outline-none"
+                >
+                  import a session
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".json"
+                  onChange={handleFileImport}
+                  className="hidden"
+                />
               </motion.div>
             )}
 
@@ -204,9 +287,43 @@ export function StudyInput() {
         </CardContent>
       </Card>
 
+      {/* Relative Metadata bar */}
+      {result && (
+        <div className="w-full max-w-2xl mx-auto mt-6 px-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground border-b border-border/30 pb-3 animate-fade-in select-none">
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5" />
+            <span>{relativeTime}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={exportSession}
+              className="h-7 text-xs font-semibold px-2.5 rounded-lg hover:bg-accent/40 text-foreground gap-1.5 transition-all"
+              aria-label="Export study session JSON"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowResetModal(true)}
+              className="h-7 text-xs font-semibold px-2.5 rounded-lg hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 gap-1.5 text-muted-foreground transition-all"
+              aria-label="Clear active session"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Clear</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Tab Switcher */}
       {result && (
-        <div className="flex justify-center mt-8 mb-2">
+        <div className="flex justify-center mt-6 mb-2">
           <div className="relative p-1 bg-muted/40 backdrop-blur-md rounded-xl border border-border/60 flex items-center gap-1">
             <Button
               type="button"
@@ -249,7 +366,11 @@ export function StudyInput() {
             transition={{ duration: 0.2 }}
             className="w-full"
           >
-            <FlashcardContainer result={result} />
+            <FlashcardContainer
+              result={result}
+              initialProgress={session?.flashcardProgress}
+              onSaveProgress={saveFlashcardProgress}
+            />
           </motion.div>
         )}
         {result && activeTab === "quiz" && (
@@ -261,11 +382,80 @@ export function StudyInput() {
             transition={{ duration: 0.2 }}
             className="w-full"
           >
-            <QuizContainer result={result} onBackToFlashcards={() => setActiveTab("flashcards")} />
+            <QuizContainer
+              result={result}
+              onBackToFlashcards={() => setActiveTab("flashcards")}
+              initialProgress={session?.quizProgress}
+              onSaveProgress={saveQuizProgress}
+            />
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Marketing features and empty state panel - only rendered when no results exist */}
+      {!result && (
+        <>
+          <Features />
+          <EmptyState />
+        </>
+      )}
+
+      {/* Reset Confirmation Modal */}
+      <AnimatePresence>
+        {showResetModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowResetModal(false)}
+              className="absolute inset-0 bg-background/80 backdrop-blur-xs"
+            />
+            {/* Dialog Panel */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-lg"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="reset-modal-title"
+              aria-describedby="reset-modal-description"
+            >
+              <h3 id="reset-modal-title" className="text-lg font-bold text-foreground">
+                Reset Study Session?
+              </h3>
+              <p id="reset-modal-description" className="text-sm text-muted-foreground mt-3 leading-relaxed">
+                This will permanently clear your generated study notes, flashcards progress, quiz scores, bookmarks, and difficulty ratings. Your preferences will be preserved.
+              </p>
+              <div className="flex items-center justify-end gap-3 mt-6">
+                <Button
+                  ref={cancelButtonRef}
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowResetModal(false)}
+                  className="rounded-xl px-4 h-10 text-xs font-semibold hover:bg-accent/40"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    resetSession();
+                    setShowResetModal(false);
+                    toast.success("Study session cleared successfully.");
+                  }}
+                  className="rounded-xl px-4 h-10 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white dark:bg-red-500/10 dark:text-red-500 dark:border dark:border-red-500/25 dark:hover:bg-red-500/15"
+                >
+                  Reset Session
+                </Button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
   );
 }
-
