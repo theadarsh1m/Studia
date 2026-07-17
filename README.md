@@ -119,3 +119,33 @@ npm run build
 - **Cloud Synchronization**: Sync study decks across multiple devices via databases (e.g. Supabase, PostgreSQL) and authentication layers (e.g. NextAuth).
 - **PDF & Document Uploaders**: Support directly parsing uploaded text files, PDFs, or slides using server-side document readers.
 - **Spaced Repetition Algorithms**: Track card reviews and schedule review notifications using spacing algorithms (SuperMemo SM-2).
+
+---
+
+## Known Limitations
+
+- **Statefulness**: Currently uses local storage for session persistence; clearing browser data will clear progress if not exported.
+- **Input Constraints**: Cannot parse non-text formats (images, PDFs) directly without third-party services.
+- **Large Contexts**: Notes are capped at 8,000 characters to ensure the model responds within a reasonable time and avoids context window limits.
+
+---
+
+## AI-Usage Note
+
+During the development of this project, AI assistants were used to:
+- Draft boilerplate Next.js and Tailwind CSS structures.
+- Iterate on Framer Motion animation configurations for the flashcard flip effect.
+- Generate generic dummy data for testing purposes.
+- Refine system prompts for more consistent JSON output from the Gemini API.
+
+All core logic, error handling cascades, state management, and architectural decisions were made manually to ensure a robust and reliable application.
+
+---
+
+## Time Spent
+
+- **Planning & Setup**: 1 hour
+- **Core UI & State Management**: 2.5 hours
+- **AI Integration & Error Handling (Zod, Fallbacks)**: 2 hours
+- **Polish, Animations & Persistence**: 2 hours
+- **Total Time**: ~7.5 hours
