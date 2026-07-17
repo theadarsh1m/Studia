@@ -2,20 +2,19 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { X, Sparkles, Loader2, ChevronDown, ChevronUp, Copy, Check, Trash2 } from "lucide-react";
+import { X, Sparkles, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { useAutoResize } from "@/hooks/use-auto-resize";
 import { StudyMaterial } from "@/lib/types/study";
+import { FlashcardContainer } from "@/components/flashcards/FlashcardContainer";
 
 export function StudyInput() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<StudyMaterial | null>(null);
-  const [isPanelOpen, setIsPanelOpen] = useState(true);
-  const [copied, setCopied] = useState(false);
   
   const textareaRef = useAutoResize(text);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -52,7 +51,7 @@ export function StudyInput() {
     setResult(null);
 
     const toastId = toast.loading("Generating study materials...", {
-      description: "Calling Gemini 2.5 Flash API...",
+      description: "Calling Gemini 2.5 Flash Lite API...",
     });
 
     try {
@@ -72,11 +71,10 @@ export function StudyInput() {
       }
 
       setResult(resData.data);
-      setIsPanelOpen(true);
       
       toast.success("Study materials generated successfully!", {
         id: toastId,
-        description: "Raw validated JSON loaded in the Developer Panel.",
+        description: "Your interactive flashcards are ready.",
         duration: 4000,
       });
     } catch (err: unknown) {
@@ -111,14 +109,6 @@ export function StudyInput() {
     setText(
       "Photosynthesis is the process by which green plants convert sunlight into chemical energy. During this process, carbon dioxide and water are combined to produce glucose and oxygen, driven by light energy captured by chlorophyll."
     );
-  };
-
-  const handleCopy = () => {
-    if (!result) return;
-    navigator.clipboard.writeText(JSON.stringify(result, null, 2));
-    setCopied(true);
-    toast.success("Copied raw JSON to clipboard!");
-    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -211,7 +201,7 @@ export function StudyInput() {
         </CardContent>
       </Card>
 
-      {/* Developer Panel */}
+      {/* Interactive Flashcard Deck View */}
       <AnimatePresence>
         {result && (
           <motion.div
@@ -219,69 +209,9 @@ export function StudyInput() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.3 }}
-            className="mt-8 border border-border bg-card/45 backdrop-blur-xs rounded-xl overflow-hidden shadow-md"
+            className="w-full"
           >
-            <div className="flex items-center justify-between px-6 py-4 bg-muted/30 border-b border-border/40">
-              <div className="flex items-center gap-2">
-                <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <h3 className="font-semibold text-sm tracking-tight text-foreground">
-                  Developer Panel <span className="text-xs font-normal text-muted-foreground">(Phase 2 - Raw JSON)</span>
-                </h3>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleCopy}
-                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                  title="Copy JSON"
-                >
-                  {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setResult(null);
-                    toast.info("Cleared Developer Panel.");
-                  }}
-                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  title="Clear Result"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-                <div className="w-px h-4 bg-border/40 mx-0.5" />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsPanelOpen(!isPanelOpen)}
-                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                >
-                  {isPanelOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </Button>
-              </div>
-            </div>
-
-            <AnimatePresence initial={false}>
-              {isPanelOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2, ease: "easeInOut" }}
-                  className="overflow-hidden"
-                >
-                  <div className="p-6 border-t border-border/20">
-                    <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/25 text-xs text-amber-700 dark:text-amber-300">
-                      <strong>Developer Notice:</strong> This is a temporary developer panel displaying the raw, validated study material JSON returned by the backend. It will be replaced with rich flashcard and quiz components in Phase 3.
-                    </div>
-                    <pre className="p-4 bg-muted/60 dark:bg-muted/40 rounded-lg text-xs font-mono overflow-auto max-h-[450px] border border-border/85 text-foreground selection:bg-zinc-300 dark:selection:bg-zinc-800">
-                      <code>{JSON.stringify(result, null, 2)}</code>
-                    </pre>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <FlashcardContainer result={result} />
           </motion.div>
         )}
       </AnimatePresence>

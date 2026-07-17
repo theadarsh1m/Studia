@@ -12,8 +12,8 @@ export function getGeminiModel() {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("Missing GEMINI_API_KEY environment variable. Please configure it in .env.local");
   }
-  // Use model name from env variable if provided, default to gemini-3.5-flash for maximum compatibility
-  const modelName = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+  // Use model name from env variable if provided, default to gemini-2.5-flash-lite for maximum compatibility
+  const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
   
   return genAI.getGenerativeModel({
     model: modelName,
