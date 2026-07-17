@@ -12,23 +12,34 @@ import { StudyMaterial } from "@/lib/types/study";
 import { FlashcardContainer } from "@/components/flashcards/FlashcardContainer";
 import { QuizContainer } from "@/components/quiz/QuizContainer";
 import { useStudyPersistence } from "@/hooks/useStudyPersistence";
+import { useGenerateStudy } from "@/hooks/useGenerateStudy";
+import { ErrorCard } from "@/components/errors/ErrorCard";
+import { LoadingSkeleton } from "@/components/errors/LoadingSkeleton";
+import { ErrorBoundary } from "@/components/errors/ErrorBoundary";
 import { Features } from "./Features";
 import { EmptyState } from "./EmptyState";
 
 export function StudyInput() {
   const [text, setText] = useState("");
-  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<StudyMaterial | null>(null);
   const [activeTab, setActiveTab] = useState<"flashcards" | "quiz">("flashcards");
   const [showResetModal, setShowResetModal] = useState(false);
   
   const textareaRef = useAutoResize(text);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
 
-  const maxChars = 5000;
+  const maxChars = 8000;
   const characterCount = text.length;
+
+  const {
+    loading,
+    error,
+    validationError,
+    validateNotes,
+    generate,
+    cancelRequest,
+  } = useGenerateStudy();
 
   // Master persistence state hook
   const {
@@ -43,14 +54,12 @@ export function StudyInput() {
     importSession,
   } = useStudyPersistence();
 
-  // Cancel ongoing requests on unmount
+  // Validate dynamically as the user types
   useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, []);
+    if (text.length > 0) {
+      validateNotes(text);
+    }
+  }, [text, validateNotes]);
 
   // Sync result & input notes from loaded session state
   useEffect(() => {
@@ -88,67 +97,25 @@ export function StudyInput() {
     }
   }, [showResetModal]);
 
-  const handleGenerate = async (e: React.FormEvent) => {
+  const handleGenerate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim()) {
-      toast.error("Please enter some study notes first.");
-      return;
-    }
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    setLoading(true);
-
-    const toastId = toast.loading("Generating study materials...", {
-      description: "Calling Gemini 2.5 Flash Lite API...",
-    });
-
-    try {
-      const response = await fetch("/api/study/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ notes: text.trim() }),
-        signal: controller.signal,
-      });
-
-      const resData = await response.json();
-
-      if (!response.ok || !resData.success) {
-        throw new Error(resData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      // Persist the newly validated study material
-      createNewSession(text.trim(), resData.data);
+    generate(text, (data) => {
+      createNewSession(text.trim(), data);
       setActiveTab("flashcards");
-      
-      toast.success("Study materials generated successfully!", {
-        id: toastId,
-        description: "Your interactive study materials are ready.",
-        duration: 4000,
-      });
-    } catch (err: unknown) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      if (error.name === "AbortError") {
-        return;
-      }
+    });
+  };
 
-      console.error("Generation error:", error);
-      toast.error("Failed to generate study materials", {
-        id: toastId,
-        description: error.message || "An unexpected error occurred.",
-        duration: 5000,
-      });
-    } finally {
-      if (abortControllerRef.current === controller) {
-        setLoading(false);
-      }
+  const handleRetry = () => {
+    generate(text, (data) => {
+      createNewSession(text.trim(), data);
+      setActiveTab("flashcards");
+    });
+  };
+
+  const handleEditNotes = () => {
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   };
 
@@ -256,6 +223,18 @@ export function StudyInput() {
               </motion.div>
             )}
 
+            {/* Inline validation error messages */}
+            {validationError && (
+              <motion.p
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-xs text-red-500 font-medium px-1"
+                id="notes-validation-msg"
+              >
+                {validationError}
+              </motion.p>
+            )}
+
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-2 pt-4 border-t border-border/40">
               {/* Character counter */}
               <div
@@ -268,20 +247,34 @@ export function StudyInput() {
                 {characterCount.toLocaleString()} / {maxChars.toLocaleString()} characters
               </div>
 
-              {/* Action Button */}
-              <Button
-                type="submit"
-                size="lg"
-                disabled={loading || !text.trim()}
-                className="w-full sm:w-auto font-medium gap-2 relative overflow-hidden"
-              >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                {loading && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    onClick={cancelRequest}
+                    className="w-full sm:w-auto font-medium text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl border-destructive/20 gap-1.5"
+                    aria-label="Cancel active generation request"
+                  >
+                    <span>Cancel</span>
+                  </Button>
                 )}
-                <span>{loading ? "Generating..." : "Generate Study Material"}</span>
-              </Button>
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={loading || !!validationError || text.trim().length < 20 || text.trim().length > 8000}
+                  className="w-full sm:w-auto font-medium gap-2 relative overflow-hidden"
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  <span>{loading ? "Generating..." : "Generate Study Material"}</span>
+                </Button>
+              </div>
             </div>
           </form>
         </CardContent>
@@ -321,79 +314,104 @@ export function StudyInput() {
         </div>
       )}
 
-      {/* Tab Switcher */}
+      {error && (
+        <ErrorCard
+          error={error}
+          onRetry={handleRetry}
+          onEditNotes={handleEditNotes}
+          loading={loading}
+        />
+      )}
+
+      {loading && !result && <LoadingSkeleton />}
+
       {result && (
-        <div className="flex justify-center mt-6 mb-2">
-          <div className="relative p-1 bg-muted/40 backdrop-blur-md rounded-xl border border-border/60 flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setActiveTab("flashcards")}
-              className={`rounded-lg px-4 py-1.5 text-xs font-semibold h-8 gap-1.5 transition-all duration-300 ${
-                activeTab === "flashcards"
-                  ? "bg-background text-foreground shadow-xs border border-border/40 font-bold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>Flashcards</span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setActiveTab("quiz")}
-              className={`rounded-lg px-4 py-1.5 text-xs font-semibold h-8 gap-1.5 transition-all duration-300 ${
-                activeTab === "quiz"
-                  ? "bg-background text-foreground shadow-xs border border-border/40 font-bold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Practice Quiz</span>
-            </Button>
+        <div className="relative">
+          {/* Glass overlay when regenerating */}
+          {loading && (
+            <div className="absolute inset-x-0 -top-2 -bottom-2 bg-background/55 backdrop-blur-[2px] z-50 flex flex-col items-center justify-center rounded-2xl select-none pointer-events-auto">
+              <div className="bg-card/95 border border-border/80 px-6 py-4 rounded-2xl shadow-xl flex items-center gap-3">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                <span className="text-sm font-semibold text-foreground">Regenerating study deck...</span>
+              </div>
+            </div>
+          )}
+
+          {/* Tab Switcher */}
+          <div className="flex justify-center mt-6 mb-2">
+            <div className="relative p-1 bg-muted/40 backdrop-blur-md rounded-xl border border-border/60 flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setActiveTab("flashcards")}
+                className={`rounded-lg px-4 py-1.5 text-xs font-semibold h-8 gap-1.5 transition-all duration-300 ${
+                  activeTab === "flashcards"
+                    ? "bg-background text-foreground shadow-xs border border-border/40 font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Flashcards</span>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setActiveTab("quiz")}
+                className={`rounded-lg px-4 py-1.5 text-xs font-semibold h-8 gap-1.5 transition-all duration-300 ${
+                  activeTab === "quiz"
+                    ? "bg-background text-foreground shadow-xs border border-border/40 font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <GraduationCap className="w-3.5 h-3.5" />
+                <span>Practice Quiz</span>
+              </Button>
+            </div>
           </div>
+
+          {/* Interactive Flashcard / Quiz views with clean transitions inside Error Boundary */}
+          <ErrorBoundary>
+            <AnimatePresence mode="wait">
+              {result && activeTab === "flashcards" && (
+                <motion.div
+                  key="flashcards"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.2 }}
+                  className="w-full"
+                >
+                  <FlashcardContainer
+                    result={result}
+                    initialProgress={session?.flashcardProgress}
+                    onSaveProgress={saveFlashcardProgress}
+                  />
+                </motion.div>
+              )}
+              {result && activeTab === "quiz" && (
+                <motion.div
+                  key="quiz"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.2 }}
+                  className="w-full"
+                >
+                  <QuizContainer
+                    result={result}
+                    onBackToFlashcards={() => setActiveTab("flashcards")}
+                    initialProgress={session?.quizProgress}
+                    onSaveProgress={saveQuizProgress}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </ErrorBoundary>
         </div>
       )}
 
-      {/* Interactive Flashcard / Quiz views with clean transitions */}
-      <AnimatePresence mode="wait">
-        {result && activeTab === "flashcards" && (
-          <motion.div
-            key="flashcards"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.2 }}
-            className="w-full"
-          >
-            <FlashcardContainer
-              result={result}
-              initialProgress={session?.flashcardProgress}
-              onSaveProgress={saveFlashcardProgress}
-            />
-          </motion.div>
-        )}
-        {result && activeTab === "quiz" && (
-          <motion.div
-            key="quiz"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.2 }}
-            className="w-full"
-          >
-            <QuizContainer
-              result={result}
-              onBackToFlashcards={() => setActiveTab("flashcards")}
-              initialProgress={session?.quizProgress}
-              onSaveProgress={saveQuizProgress}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Marketing features and empty state panel - only rendered when no results exist */}
-      {!result && (
+      {/* Marketing features and empty state panel - only rendered when no results exist and not loading */}
+      {!result && !loading && (
         <>
           <Features />
           <EmptyState />

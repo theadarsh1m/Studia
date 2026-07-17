@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Call service layer
-    const data = await StudyService.generateStudyMaterial(notes);
+    const data = await StudyService.generateStudyMaterial(notes, request.signal);
 
     // 4. Return success response
     return NextResponse.json({
