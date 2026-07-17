@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { X, Sparkles, Loader2 } from "lucide-react";
+import { X, Sparkles, Loader2, BookOpen, GraduationCap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -10,11 +10,13 @@ import { Textarea } from "@/components/ui/Textarea";
 import { useAutoResize } from "@/hooks/use-auto-resize";
 import { StudyMaterial } from "@/lib/types/study";
 import { FlashcardContainer } from "@/components/flashcards/FlashcardContainer";
+import { QuizContainer } from "@/components/quiz/QuizContainer";
 
 export function StudyInput() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<StudyMaterial | null>(null);
+  const [activeTab, setActiveTab] = useState<"flashcards" | "quiz">("flashcards");
   
   const textareaRef = useAutoResize(text);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -71,10 +73,11 @@ export function StudyInput() {
       }
 
       setResult(resData.data);
+      setActiveTab("flashcards");
       
       toast.success("Study materials generated successfully!", {
         id: toastId,
-        description: "Your interactive flashcards are ready.",
+        description: "Your interactive study materials are ready.",
         duration: 4000,
       });
     } catch (err: unknown) {
@@ -201,17 +204,64 @@ export function StudyInput() {
         </CardContent>
       </Card>
 
-      {/* Interactive Flashcard Deck View */}
-      <AnimatePresence>
-        {result && (
+      {/* Tab Switcher */}
+      {result && (
+        <div className="flex justify-center mt-8 mb-2">
+          <div className="relative p-1 bg-muted/40 backdrop-blur-md rounded-xl border border-border/60 flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setActiveTab("flashcards")}
+              className={`rounded-lg px-4 py-1.5 text-xs font-semibold h-8 gap-1.5 transition-all duration-300 ${
+                activeTab === "flashcards"
+                  ? "bg-background text-foreground shadow-xs border border-border/40 font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Flashcards</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setActiveTab("quiz")}
+              className={`rounded-lg px-4 py-1.5 text-xs font-semibold h-8 gap-1.5 transition-all duration-300 ${
+                activeTab === "quiz"
+                  ? "bg-background text-foreground shadow-xs border border-border/40 font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Practice Quiz</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Flashcard / Quiz views with clean transitions */}
+      <AnimatePresence mode="wait">
+        {result && activeTab === "flashcards" && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            key="flashcards"
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.3 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.2 }}
             className="w-full"
           >
             <FlashcardContainer result={result} />
+          </motion.div>
+        )}
+        {result && activeTab === "quiz" && (
+          <motion.div
+            key="quiz"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.2 }}
+            className="w-full"
+          >
+            <QuizContainer result={result} onBackToFlashcards={() => setActiveTab("flashcards")} />
           </motion.div>
         )}
       </AnimatePresence>
