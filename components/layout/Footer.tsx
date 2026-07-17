@@ -7,10 +7,11 @@ export function Footer() {
   return (
     <footer className="w-full border-t border-border/40 bg-background/30 py-8 mt-auto">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        {/* Left Side */}
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-          <Sparkles className="w-4 h-4 text-zinc-400 dark:text-zinc-600" />
-          <span>&copy; {currentYear} aiStudi. All rights reserved.</span>
+        {/* Left Side - Social Links */}
+        <div className="flex items-center gap-4 text-xs sm:text-sm text-muted-foreground">
+          <a href="https://theadarsh.me/" target="_blank" rel="noopener noreferrer" className="hover:text-foreground hover:underline transition-colors font-medium">Portfolio</a>
+          <a href="https://www.linkedin.com/in/adarshsachan01" target="_blank" rel="noopener noreferrer" className="hover:text-foreground hover:underline transition-colors font-medium">LinkedIn</a>
+          <a href="https://github.com/theadarsh1m" target="_blank" rel="noopener noreferrer" className="hover:text-foreground hover:underline transition-colors font-medium">GitHub</a>
         </div>
 
         {/* Right Side - Tech Stack */}

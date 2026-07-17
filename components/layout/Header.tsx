@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Button } from "@/components/ui/Button";
 
@@ -43,8 +42,8 @@ export function Header() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Left: Logo & Title */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-tr from-zinc-950 to-zinc-700 dark:from-zinc-100 dark:to-zinc-300 text-background dark:text-foreground shadow-xs transition-all duration-300 group-hover:scale-105 group-hover:shadow-md">
-            <Sparkles className="w-4.5 h-4.5 transition-transform duration-500 group-hover:rotate-12" />
+          <div className="relative flex items-center justify-center w-9 h-9 transition-all duration-300 group-hover:scale-105">
+            <img src="/logo.png" alt="aiStudi Logo" className="w-full h-full object-contain drop-shadow-sm" />
           </div>
           <span className="font-semibold text-sm tracking-tight text-foreground transition-colors">
             aiStudi

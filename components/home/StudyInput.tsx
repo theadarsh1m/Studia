@@ -6,7 +6,9 @@ import { X, Sparkles, Loader2, BookOpen, GraduationCap, Clock, Download, Trash2 
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import SpecularButton from "@/components/ui/SpecularButton";
 import { Textarea } from "@/components/ui/Textarea";
+import { useTheme } from "next-themes";
 import { useAutoResize } from "@/hooks/use-auto-resize";
 import { StudyMaterial } from "@/lib/types/study";
 import { FlashcardContainer } from "@/components/flashcards/FlashcardContainer";
@@ -20,6 +22,12 @@ import { Features } from "./Features";
 import { EmptyState } from "./EmptyState";
 
 export function StudyInput() {
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => setMounted(true), []);
+  const isDark = mounted ? resolvedTheme === "dark" : true;
+
   const [text, setText] = useState("");
   const [result, setResult] = useState<StudyMaterial | null>(null);
   const [activeTab, setActiveTab] = useState<"flashcards" | "quiz">("flashcards");
@@ -247,7 +255,7 @@ export function StudyInput() {
                 {characterCount.toLocaleString()} / {maxChars.toLocaleString()} characters
               </div>
 
-              {/* Action Buttons */}
+                {/* Action Buttons */}
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 {loading && (
                   <Button
@@ -261,19 +269,25 @@ export function StudyInput() {
                     <span>Cancel</span>
                   </Button>
                 )}
-                <Button
+                <SpecularButton
                   type="submit"
                   size="lg"
                   disabled={loading || !!validationError || text.trim().length < 20 || text.trim().length > 8000}
-                  className="w-full sm:w-auto font-medium gap-2 relative overflow-hidden"
+                  className="w-full sm:w-auto font-medium flex items-center justify-center gap-2"
+                  baseColor={isDark ? "#27272a" : "#f4f4f5"}
+                  lineColor={isDark ? "#e4e4e7" : "#52525b"}
+                  tint={isDark ? "#09090b" : "#ffffff"}
+                  textColor="hsl(var(--foreground))"
                 >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-4 h-4" />
-                  )}
-                  <span>{loading ? "Generating..." : "Generate Study Material"}</span>
-                </Button>
+                  <div className="flex items-center gap-2">
+                    {loading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                    <span>{loading ? "Generating..." : "Generate Study Material"}</span>
+                  </div>
+                </SpecularButton>
               </div>
             </div>
           </form>

@@ -30,16 +30,16 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground font-sans selection:bg-zinc-200 dark:selection:bg-zinc-800 overflow-x-hidden">
+      <body className="bg-background text-foreground font-sans selection:bg-zinc-200 dark:selection:bg-zinc-800 overflow-x-hidden">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <div className="relative flex flex-col min-h-screen overflow-x-hidden">
+          <div className="relative flex flex-col min-h-screen">
             {/* Subtle background glow decorative elements */}
             <div className="absolute top-[-10%] left-[-10%] w-[35%] h-[35%] rounded-full bg-zinc-200/20 dark:bg-zinc-800/10 blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[35%] h-[35%] rounded-full bg-zinc-200/20 dark:bg-zinc-800/10 blur-[120px] pointer-events-none" />

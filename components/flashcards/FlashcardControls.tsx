@@ -3,6 +3,10 @@
 import React from "react";
 import { ChevronLeft, ChevronRight, RotateCcw, Shuffle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import SpecularButton from "@/components/ui/SpecularButton";
+
+import { useTheme } from "next-themes";
+import { useState, useEffect } from "react";
 
 interface FlashcardControlsProps {
   onPrevious: () => void;
@@ -27,6 +31,12 @@ export function FlashcardControls({
   isShuffled,
   hasCards,
 }: FlashcardControlsProps) {
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => setMounted(true), []);
+  const isDark = mounted ? resolvedTheme === "dark" : true;
+
   return (
     <div className="flex flex-wrap items-center justify-center gap-3 mt-8 max-w-xl mx-auto w-full px-4">
       {/* Shuffle Button */}
@@ -50,46 +60,52 @@ export function FlashcardControls({
       {/* Navigation and Flip Controls */}
       <div className="flex items-center gap-2">
         {/* Previous Button */}
-        <Button
+        <SpecularButton
           type="button"
-          variant="outline"
-          size="icon"
           disabled={isFirst || !hasCards}
           onClick={onPrevious}
-          className="h-11 w-11 rounded-xl text-foreground border-border hover:bg-accent/40 disabled:opacity-40 shadow-xs"
-          title="Previous card (←)"
-          aria-label="Previous card"
+          className="!p-0 !h-11 !w-11 !rounded-xl flex items-center justify-center"
+          baseColor={isDark ? "#27272a" : "#f4f4f5"}
+          lineColor={isDark ? "#e4e4e7" : "#52525b"}
+          tint={isDark ? "#09090b" : "#ffffff"}
+          textColor="hsl(var(--foreground))"
+          radius={12}
         >
           <ChevronLeft className="w-5 h-5" />
-        </Button>
+        </SpecularButton>
 
         {/* Flip Button */}
-        <Button
+        <SpecularButton
           type="button"
-          variant="outline"
           onClick={onFlip}
           disabled={!hasCards}
-          className="h-11 px-5 rounded-xl font-semibold text-sm border-border hover:bg-accent/40 gap-2 shadow-xs"
-          title="Flip card (Space)"
-          aria-label="Flip card"
+          className="!h-11 !px-5 !rounded-xl text-sm gap-2"
+          baseColor={isDark ? "#27272a" : "#f4f4f5"}
+          lineColor={isDark ? "#e4e4e7" : "#52525b"}
+          tint={isDark ? "#09090b" : "#ffffff"}
+          textColor="hsl(var(--foreground))"
+          radius={12}
         >
-          <RefreshCw className="w-4 h-4 text-muted-foreground" />
-          <span>Flip Card</span>
-        </Button>
+          <div className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4 text-muted-foreground" />
+            <span>Flip Card</span>
+          </div>
+        </SpecularButton>
 
         {/* Next Button */}
-        <Button
+        <SpecularButton
           type="button"
-          variant="outline"
-          size="icon"
           disabled={isLast || !hasCards}
           onClick={onNext}
-          className="h-11 w-11 rounded-xl text-foreground border-border hover:bg-accent/40 disabled:opacity-40 shadow-xs"
-          title="Next card (→)"
-          aria-label="Next card"
+          className="!p-0 !h-11 !w-11 !rounded-xl flex items-center justify-center"
+          baseColor={isDark ? "#27272a" : "#f4f4f5"}
+          lineColor={isDark ? "#e4e4e7" : "#52525b"}
+          tint={isDark ? "#09090b" : "#ffffff"}
+          textColor="hsl(var(--foreground))"
+          radius={12}
         >
           <ChevronRight className="w-5 h-5" />
-        </Button>
+        </SpecularButton>
       </div>
 
       {/* Restart Button */}
