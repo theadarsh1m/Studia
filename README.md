@@ -2,15 +2,19 @@
 
 [GitHub Repository](https://github.com/theadarsh1m/aiStudi)
 
-**aiStudi** is a premium, fully interactive, and responsive educational product that transforms lecture notes, textbook passages, or transcripts into structured flashcards and quizzes using **Google Gemini 3.1 Flash Lite**. 
+**aiStudi** is a premium, fully interactive, and responsive educational product that transforms lecture notes, textbook passages, or uploaded documents into structured flashcards and quizzes using **Google Gemini 3.1 Flash Lite**. 
 
-Built with Next.js, Tailwind CSS, and Framer Motion, it features offline session persistence, automated request timeouts, user-friendly cancellation gates, loading skeletons, and robust class-based React error boundaries.
+Built with Next.js, Tailwind CSS, and Framer Motion, it features document extraction, offline session persistence, automated request timeouts, user-friendly cancellation gates, loading skeletons, and robust class-based React error boundaries.
 
 ---
 
 ## Key Features
 
-- 🪄 **AI Study Generation**: Converts raw texts (20 - 8,000 characters) into clean, Zod-validated flashcards and practice quizzes.
+- 🪄 **AI Study Generation**: Converts raw texts (20 - 8,000 characters) or attached PDFs into clean, Zod-validated flashcards and practice quizzes.
+- 📁 **Document Attachment Support**: 
+  - Drag and drop PDF files directly onto the input canvas or browse using the file picker.
+  - Generates study material directly from extracted PDF text combined with custom instruction prompts.
+  - Visual attachment chip indicating file details (name, size) with simple removal.
 - 🗂️ **Interactive Flashcards Canvas**:
   - Fluid 3D-like flip animations and slide transitions.
   - Active recall statistics dashboard tracking card progress.
@@ -35,6 +39,7 @@ Built with Next.js, Tailwind CSS, and Framer Motion, it features offline session
 ## Tech Stack
 
 - **Core**: Next.js 15+ (App Router), React 19, TypeScript
+- **Document Processing**: `pdf-parse` (CJS server module)
 - **Styling**: Tailwind CSS
 - **Animations**: Framer Motion
 - **AI Integration**: Google Gen AI SDK (`gemini-3.1-flash-lite`)
@@ -47,7 +52,9 @@ Built with Next.js, Tailwind CSS, and Framer Motion, it features offline session
 
 ```text
 ├── app/
-│   ├── api/study/generate/     # Route handler communicating with Gemini
+│   ├── api/
+│   │   ├── extract-pdf/        # PDF extraction endpoint (uses pdf-parse)
+│   │   └── study/generate/     # Route handler communicating with Gemini
 │   ├── globals.css             # Main styling layer & design tokens
 │   ├── layout.tsx              # Root HTML frame & layout structures
 │   └── page.tsx                # Entry home container
@@ -57,7 +64,7 @@ Built with Next.js, Tailwind CSS, and Framer Motion, it features offline session
 │   ├── home/                   # Hero banner, StudyInput, marketing panels
 │   ├── layout/                 # Main header, footer, container dividers
 │   ├── quiz/                   # MCQ options, timers, scores, recap sheets
-│   └── ui/                     # Reusable design buttons, inputs, themes
+│   └── ui/                     # Reusable design buttons, inputs, themes (AttachmentChip, SpecularButton)
 ├── hooks/                      # Custom React hooks (auto-resize, persistent states)
 ├── lib/
 │   ├── ai/                     # Google Gemini SDK instance settings
@@ -117,16 +124,16 @@ npm run build
 ## Future Improvements & Roadmap
 
 - **Cloud Synchronization**: Sync study decks across multiple devices via databases (e.g. Supabase, PostgreSQL) and authentication layers (e.g. NextAuth).
-- **PDF & Document Uploaders**: Support directly parsing uploaded text files, PDFs, or slides using server-side document readers.
 - **Spaced Repetition Algorithms**: Track card reviews and schedule review notifications using spacing algorithms (SuperMemo SM-2).
+- **OCR Integration**: Parse text from scanned image-based PDFs or raw lecture images using visual OCR modules.
 
 ---
 
 ## Known Limitations
 
 - **Statefulness**: Currently uses local storage for session persistence; clearing browser data will clear progress if not exported.
-- **Input Constraints**: Cannot parse non-text formats (images, PDFs) directly without third-party services.
-- **Large Contexts**: Notes are capped at 8,000 characters to ensure the model responds within a reasonable time and avoids context window limits.
+- **Image-based Documents**: Only text-based PDFs are supported for extraction; scanned or image-only PDFs will fail to yield text.
+- **Large Contexts**: Text instruction prompts are capped at 8,000 characters to keep Gemini request payloads predictable.
 
 ---
 
@@ -148,4 +155,5 @@ All core logic, error handling cascades, state management, and architectural dec
 - **Core UI & State Management**: 2.5 hours
 - **AI Integration & Error Handling (Zod, Fallbacks)**: 2 hours
 - **Polish, Animations & Persistence**: 2 hours
-- **Total Time**: ~7.5 hours
+- **Document Upload System & PDF Parser API**: 1.5 hours
+- **Total Time**: ~9 hours

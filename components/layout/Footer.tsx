@@ -1,5 +1,5 @@
 import React from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Heart } from "lucide-react";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -14,43 +14,18 @@ export function Footer() {
           <a href="https://github.com/theadarsh1m" target="_blank" rel="noopener noreferrer" className="hover:text-foreground hover:underline transition-colors font-medium">GitHub</a>
         </div>
 
-        {/* Right Side - Tech Stack */}
-        <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+        {/* Right Side - Built with love by Adarsh Sachan */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span>Built with</span>
+          <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 animate-pulse" />
+          <span>by</span>
           <a
-            href="https://nextjs.org"
+            href="https://theadarsh.me/"
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-foreground hover:underline transition-colors"
           >
-            Next.js
-          </a>
-          <span>•</span>
-          <a
-            href="https://www.typescriptlang.org"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-foreground hover:underline transition-colors"
-          >
-            TypeScript
-          </a>
-          <span>•</span>
-          <a
-            href="https://tailwindcss.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-foreground hover:underline transition-colors"
-          >
-            Tailwind CSS
-          </a>
-          <span>•</span>
-          <a
-            href="https://www.framer.com/motion/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-foreground hover:underline transition-colors"
-          >
-            Framer Motion
+            Adarsh Sachan
           </a>
         </div>
       </div>

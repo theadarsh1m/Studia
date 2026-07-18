@@ -86,7 +86,8 @@ export class StudyError extends Error {
     return new StudyError(
       ErrorType.UNKNOWN,
       message,
-      "An unexpected error occurred. Please edit your notes and try again."
+      "An unexpected error occurred. Please edit your notes and try again.",
+      message
     );
   }
 }

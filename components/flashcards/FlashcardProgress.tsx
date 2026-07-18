@@ -24,7 +24,7 @@ export function FlashcardProgress({ current, total }: FlashcardProgressProps) {
       </div>
 
       {/* Progress bar container */}
-      <div className="w-full h-2 rounded-full bg-border/40 overflow-hidden relative border border-border/10">
+      <div className="w-full h-2 rounded-full bg-zinc-200 dark:bg-zinc-800/50 overflow-hidden relative border border-border/10">
         <motion.div
           className="h-full bg-zinc-950 dark:bg-zinc-100 rounded-full"
           initial={{ width: 0 }}

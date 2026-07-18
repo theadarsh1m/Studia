@@ -47,7 +47,7 @@ export function QuizProgress({
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full h-1.5 rounded-full bg-border/40 overflow-hidden relative">
+      <div className="w-full h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800/50 overflow-hidden relative">
         <motion.div
           className="h-full bg-zinc-950 dark:bg-zinc-100 rounded-full"
           initial={{ width: 0 }}

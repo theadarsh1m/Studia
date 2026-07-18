@@ -19,6 +19,7 @@ const devError = (message: string, ...args: unknown[]) => {
 
 export function useGenerateStudy() {
   const [loading, setLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState("Generating...");
   const [error, setError] = useState<StudyError | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   
@@ -35,17 +36,17 @@ export function useGenerateStudy() {
   }, []);
 
   // Validate the text input
-  const validateNotes = useCallback((notes: string): boolean => {
+  const validateNotes = useCallback((notes: string, hasFile: boolean = false): boolean => {
     const trimmed = notes.trim();
     if (!trimmed) {
-      setValidationError("Study notes cannot be empty.");
-      return false;
+      setValidationError(null);
+      return hasFile; // Valid if a file is attached, invalid but no error shown if empty
     }
-    if (trimmed.length < 20) {
+    if (!hasFile && trimmed.length < 20) {
       setValidationError(`Study notes are too short. Minimum 20 characters (currently ${trimmed.length}).`);
       return false;
     }
-    if (trimmed.length > 8000) {
+    if (!hasFile && trimmed.length > 8000) {
       setValidationError(`Study notes are too long. Maximum 8000 characters (currently ${trimmed.length}).`);
       return false;
     }
@@ -61,20 +62,21 @@ export function useGenerateStudy() {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setLoading(false);
+      setLoadingText("Generating...");
       toast.error("✕ Request cancelled");
     }
   }, []);
 
   // Run the generation request
   const generate = useCallback(
-    async (notes: string, onSuccess: (data: StudyMaterial) => void) => {
+    async (notes: string, file: File | null, onSuccess: (data: StudyMaterial) => void) => {
       const trimmed = notes.trim();
       
       // 1. Validation Guard
-      if (!validateNotes(notes)) {
+      if (!validateNotes(notes, !!file)) {
         devLog("Validation failed before request.");
         toast.warning("⚠ Validation failed", {
-          description: "Please check the notes constraints.",
+          description: "Please check the input constraints.",
         });
         return;
       }
@@ -91,14 +93,53 @@ export function useGenerateStudy() {
       setLoading(true);
       setError(null);
 
-      const toastId = toast.loading("Generating study materials...", {
-        description: "Analyzing text via Gemini 3.1 Flash Lite API...",
+      const toastId = toast.loading(file ? "Extracting PDF..." : "Generating study materials...", {
+        description: file ? "Reading document text..." : "Analyzing text via Gemini 3.1 Flash Lite API...",
       });
 
       try {
+        let combinedNotes = trimmed;
+
+        if (file) {
+          setLoadingText("Extracting PDF...");
+          devLog("Uploading PDF for extraction...");
+          
+          const formData = new FormData();
+          formData.append("file", file);
+
+          const extractRes = await fetch("/api/extract-pdf", {
+            method: "POST",
+            body: formData,
+            signal: controller.signal,
+          });
+
+          if (!extractRes.ok) {
+            const errorData = await extractRes.json().catch(() => ({}));
+            throw new StudyError(
+              ErrorType.VALIDATION,
+              errorData.error || "Failed to extract PDF text",
+              errorData.error || "Failed to extract PDF text. The file might be empty, corrupted, or password-protected.",
+              `PDF Extraction API returned status ${extractRes.status}`
+            );
+          }
+
+          const extractData = await extractRes.json();
+          const extractedText = extractData.text;
+
+          combinedNotes = `Attached Document Content:\n${extractedText}\n\n${trimmed ? `User Instructions:\n${trimmed}` : ""}`.trim();
+          
+          if (abortControllerRef.current === controller) {
+            setLoadingText("Generating...");
+            toast.loading("Generating study materials...", {
+              id: toastId,
+              description: "Analyzing text via Gemini 3.1 Flash Lite API...",
+            });
+          }
+        }
+
         devLog("Starting study material generation...");
         const resultData = await generateStudyRequest({
-          notes: trimmed,
+          notes: combinedNotes,
           signal: controller.signal,
         });
 
@@ -147,6 +188,7 @@ export function useGenerateStudy() {
       } finally {
         if (abortControllerRef.current === controller) {
           setLoading(false);
+          setLoadingText("Generating...");
           abortControllerRef.current = null;
         }
       }
@@ -156,6 +198,7 @@ export function useGenerateStudy() {
 
   return {
     loading,
+    loadingText,
     error,
     validationError,
     validateNotes,

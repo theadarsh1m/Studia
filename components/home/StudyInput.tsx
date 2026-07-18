@@ -2,13 +2,15 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { X, Sparkles, Loader2, BookOpen, GraduationCap, Clock, Download, Trash2 } from "lucide-react";
+import { X, Sparkles, Loader2, BookOpen, GraduationCap, Clock, Download, Trash2, Paperclip } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import SpecularButton from "@/components/ui/SpecularButton";
 import { Textarea } from "@/components/ui/Textarea";
+import { AttachmentChip } from "@/components/ui/AttachmentChip";
 import { useTheme } from "next-themes";
+import { validatePdfFile } from "@/lib/fileValidation";
 import { useAutoResize } from "@/hooks/use-auto-resize";
 import { StudyMaterial } from "@/lib/types/study";
 import { FlashcardContainer } from "@/components/flashcards/FlashcardContainer";
@@ -29,12 +31,15 @@ export function StudyInput() {
   const isDark = mounted ? resolvedTheme === "dark" : true;
 
   const [text, setText] = useState("");
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [result, setResult] = useState<StudyMaterial | null>(null);
   const [activeTab, setActiveTab] = useState<"flashcards" | "quiz">("flashcards");
   const [showResetModal, setShowResetModal] = useState(false);
   
   const textareaRef = useAutoResize(text);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
 
   const maxChars = 8000;
@@ -42,6 +47,7 @@ export function StudyInput() {
 
   const {
     loading,
+    loadingText,
     error,
     validationError,
     validateNotes,
@@ -62,12 +68,10 @@ export function StudyInput() {
     importSession,
   } = useStudyPersistence();
 
-  // Validate dynamically as the user types
+  // Validate dynamically as the user types or attaches a file
   useEffect(() => {
-    if (text.length > 0) {
-      validateNotes(text);
-    }
-  }, [text, validateNotes]);
+    validateNotes(text, !!attachedFile);
+  }, [text, attachedFile, validateNotes]);
 
   // Sync result & input notes from loaded session state
   useEffect(() => {
@@ -76,9 +80,11 @@ export function StudyInput() {
         if (session) {
           setResult(session.material);
           setText(session.originalNotes);
+          setAttachedFile(null);
         } else {
           setResult(null);
           setText("");
+          setAttachedFile(null);
         }
       }, 0);
     }
@@ -105,16 +111,58 @@ export function StudyInput() {
     }
   }, [showResetModal]);
 
+  const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const errorMsg = validatePdfFile(file);
+    if (errorMsg) {
+      toast.error("Invalid file", { description: errorMsg });
+      if (attachmentInputRef.current) attachmentInputRef.current.value = "";
+      return;
+    }
+
+    setAttachedFile(file);
+    if (attachmentInputRef.current) attachmentInputRef.current.value = "";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      const errorMsg = validatePdfFile(file);
+      if (errorMsg) {
+        toast.error("Invalid file", { description: errorMsg });
+        return;
+      }
+      setAttachedFile(file);
+    }
+  };
+
   const handleGenerate = (e: React.FormEvent) => {
     e.preventDefault();
-    generate(text, (data) => {
+    generate(text, attachedFile, (data) => {
+      // In a real app we might combine notes + PDF text for the session, 
+      // but here we just store user text so they can edit it
       createNewSession(text.trim(), data);
       setActiveTab("flashcards");
     });
   };
 
   const handleRetry = () => {
-    generate(text, (data) => {
+    generate(text, attachedFile, (data) => {
       createNewSession(text.trim(), data);
       setActiveTab("flashcards");
     });
@@ -159,17 +207,43 @@ export function StudyInput() {
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 mb-16">
-      <Card className="relative overflow-hidden border-border bg-card/35 backdrop-blur-xs shadow-md focus-within:shadow-lg focus-within:border-ring/30 focus-within:ring-1 focus-within:ring-ring/30 transition-all duration-300">
+      <Card 
+        className={`relative overflow-hidden border bg-card/35 backdrop-blur-xs shadow-md transition-all duration-300 ${
+          isDragging 
+            ? "border-primary ring-2 ring-primary/20 scale-[1.01]" 
+            : "border-border focus-within:shadow-lg focus-within:border-ring/30 focus-within:ring-1 focus-within:ring-ring/30"
+        }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {isDragging && (
+          <div className="absolute inset-0 bg-primary/5 backdrop-blur-[2px] z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-primary/50">
+            <p className="text-primary font-medium flex items-center gap-2 bg-background/80 px-4 py-2 rounded-full shadow-sm">
+              <Paperclip className="w-4 h-4" />
+              Drop PDF here to attach
+            </p>
+          </div>
+        )}
         <CardContent className="p-6">
           <form onSubmit={handleGenerate} className="flex flex-col gap-4">
             <div className="relative group">
+              <AnimatePresence>
+                {attachedFile && (
+                  <AttachmentChip 
+                    file={attachedFile} 
+                    onRemove={() => setAttachedFile(null)} 
+                  />
+                )}
+              </AnimatePresence>
+              
               <Textarea
                 ref={textareaRef}
                 value={text}
                 onChange={(e) => setText(e.target.value.slice(0, maxChars))}
                 disabled={loading}
-                placeholder="Paste your study notes here..."
-                className="w-full bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 py-2 min-h-[140px] text-base leading-relaxed resize-none text-foreground placeholder:text-muted-foreground/60 transition-colors shadow-none disabled:opacity-50"
+                placeholder="Paste your study notes here or attach a PDF..."
+                className="w-full bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 pr-10 pb-12 py-2 min-h-[140px] text-base leading-relaxed resize-none text-foreground placeholder:text-muted-foreground/60 transition-colors shadow-none disabled:opacity-50"
                 aria-label="Study notes input"
               />
 
@@ -196,6 +270,29 @@ export function StudyInput() {
                   </motion.div>
                 )}
               </AnimatePresence>
+              
+              {/* Attachment Button */}
+              <div className="absolute left-0 bottom-2 text-muted-foreground">
+                <input
+                  type="file"
+                  ref={attachmentInputRef}
+                  accept="application/pdf"
+                  onChange={handleFileAttach}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={loading || !!attachedFile}
+                  onClick={() => attachmentInputRef.current?.click()}
+                  className="h-8 w-8 rounded-full hover:text-foreground hover:bg-muted/50"
+                  aria-label="Attach a PDF document"
+                  title="Attach a PDF document"
+                >
+                  <Paperclip className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Quick helper to paste example if empty */}
@@ -272,7 +369,7 @@ export function StudyInput() {
                 <SpecularButton
                   type="submit"
                   size="lg"
-                  disabled={loading || !!validationError || text.trim().length < 20 || text.trim().length > 8000}
+                  disabled={loading || !!validationError || (!attachedFile && text.trim().length < 20) || text.trim().length > 8000}
                   className="w-full sm:w-auto font-medium flex items-center justify-center gap-2"
                   baseColor={isDark ? "#27272a" : "#f4f4f5"}
                   lineColor={isDark ? "#e4e4e7" : "#52525b"}
@@ -285,7 +382,7 @@ export function StudyInput() {
                     ) : (
                       <Sparkles className="w-4 h-4" />
                     )}
-                    <span>{loading ? "Generating..." : "Generate Study Material"}</span>
+                    <span>{loading ? loadingText : "Generate Study Material"}</span>
                   </div>
                 </SpecularButton>
               </div>
