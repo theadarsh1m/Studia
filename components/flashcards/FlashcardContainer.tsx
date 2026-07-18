@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Star, Bookmark } from "lucide-react";
 import { StudyMaterial } from "@/lib/types/study";
@@ -23,6 +23,7 @@ export function FlashcardContainer({
   initialProgress,
   onSaveProgress,
 }: FlashcardContainerProps) {
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
   const defaultProgress: FlashcardProgressData = {
     currentIndex: 0,
     isFlipped: false,
@@ -253,13 +254,30 @@ export function FlashcardContainer({
       
       {/* Title & Filter Options */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-border/40 pb-5 mb-6">
-        <div className="text-center sm:text-left">
+        <div className="text-center sm:text-left flex-1">
           <h3 className="text-lg font-bold tracking-tight text-foreground">
             Study Deck: {result.title}
           </h3>
-          <p className="text-xs text-muted-foreground mt-0.5 max-w-sm">
-            {result.summary.length > 90 ? `${result.summary.slice(0, 90)}...` : result.summary}
-          </p>
+          <motion.div
+            key={result.summary}
+            initial={{ opacity: 0, y: -2 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
+            className="text-xs text-muted-foreground mt-1 max-w-lg cursor-pointer hover:text-foreground/80 transition-colors select-none"
+            title="Click to expand/collapse full summary"
+          >
+            {isSummaryExpanded ? (
+              <p className="whitespace-pre-wrap leading-relaxed">{result.summary}</p>
+            ) : (
+              <p className="line-clamp-2 md:line-clamp-3">
+                {result.summary}
+                {result.summary.length > 90 && (
+                  <span className="text-primary font-semibold ml-1 hover:underline">... read more</span>
+                )}
+              </p>
+            )}
+          </motion.div>
         </div>
 
         <Button

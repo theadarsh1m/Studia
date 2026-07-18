@@ -218,7 +218,7 @@ export function QuizContainer({
           <div className="min-h-[300px] relative w-full mt-2">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
-                key={currentIndex}
+                key={`${currentIndex}-${currentQuestionObj.question}`}
                 variants={slideVariants}
                 initial="enter"
                 animate="center"

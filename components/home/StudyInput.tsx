@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import SpecularButton from "@/components/ui/SpecularButton";
 import { Textarea } from "@/components/ui/Textarea";
 import { AttachmentChip } from "@/components/ui/AttachmentChip";
+import { RefinementInput } from "@/components/refinement/RefinementInput";
 import { useTheme } from "next-themes";
 import { validatePdfFile } from "@/lib/fileValidation";
 import { useAutoResize } from "@/hooks/use-auto-resize";
@@ -17,6 +18,7 @@ import { FlashcardContainer } from "@/components/flashcards/FlashcardContainer";
 import { QuizContainer } from "@/components/quiz/QuizContainer";
 import { useStudyPersistence } from "@/hooks/useStudyPersistence";
 import { useGenerateStudy } from "@/hooks/useGenerateStudy";
+import { useRefinement } from "@/hooks/useRefinement";
 import { ErrorCard } from "@/components/errors/ErrorCard";
 import { LoadingSkeleton } from "@/components/errors/LoadingSkeleton";
 import { ErrorBoundary } from "@/components/errors/ErrorBoundary";
@@ -61,12 +63,21 @@ export function StudyInput() {
     isLoaded,
     relativeTime,
     createNewSession,
+    updateSessionSection,
     saveFlashcardProgress,
     saveQuizProgress,
     resetSession,
     exportSession,
     importSession,
   } = useStudyPersistence();
+
+  // Refinement execution hook
+  const {
+    loading: refinementLoading,
+    error: refinementError,
+    refine,
+    cancelRequest: cancelRefinement,
+  } = useRefinement();
 
   // Validate dynamically as the user types or attaches a file
   useEffect(() => {
@@ -153,17 +164,17 @@ export function StudyInput() {
 
   const handleGenerate = (e: React.FormEvent) => {
     e.preventDefault();
-    generate(text, attachedFile, (data) => {
+    generate(text, attachedFile, (data, extractedText) => {
       // In a real app we might combine notes + PDF text for the session, 
       // but here we just store user text so they can edit it
-      createNewSession(text.trim(), data);
+      createNewSession(text.trim(), data, extractedText);
       setActiveTab("flashcards");
     });
   };
 
   const handleRetry = () => {
-    generate(text, attachedFile, (data) => {
-      createNewSession(text.trim(), data);
+    generate(text, attachedFile, (data, extractedText) => {
+      createNewSession(text.trim(), data, extractedText);
       setActiveTab("flashcards");
     });
   };
@@ -173,6 +184,25 @@ export function StudyInput() {
       textareaRef.current.focus();
       textareaRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
     }
+  };
+
+  const handleRefine = (prompt: string) => {
+    if (!result || !session) return;
+    
+    // Reconstruct the combined text from session notes and extracted pdf text
+    const hasPdfText = !!session.extractedPdfText;
+    let combinedText = hasPdfText
+      ? `Attached Document Content:\n${session.extractedPdfText}\n\n${session.originalNotes ? `User Instructions:\n${session.originalNotes}` : ""}`.trim()
+      : session.originalNotes;
+
+    // Fallback to prevent 400 errors on older sessions generated before the PDF text storage fix
+    if (!combinedText.trim()) {
+      combinedText = `Source Material Summary:\n${session.material.summary}\n\nTitle:\n${session.material.title}`;
+    }
+
+    refine(combinedText, result, prompt, (data) => {
+      updateSessionSection(data.updatedSection, data.content);
+    });
   };
 
   const handleClearInput = () => {
@@ -518,6 +548,15 @@ export function StudyInput() {
               )}
             </AnimatePresence>
           </ErrorBoundary>
+
+          {/* AI Refinement panel */}
+          <RefinementInput
+            onRefine={handleRefine}
+            loading={refinementLoading}
+            disabled={loading}
+            error={refinementError}
+            onCancel={cancelRefinement}
+          />
         </div>
       )}
 

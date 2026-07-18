@@ -47,6 +47,7 @@ export const studySessionSchema = z.object({
   createdAt: z.number(), // timestamp
   updatedAt: z.number(), // timestamp
   originalNotes: z.string(),
+  extractedPdfText: z.string().optional(),
   material: studyMaterialSchema,
   flashcardProgress: flashcardProgressSchema,
   quizProgress: quizProgressSchema,

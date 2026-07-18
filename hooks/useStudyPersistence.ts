@@ -68,7 +68,7 @@ export function useStudyPersistence() {
   }, [session?.updatedAt]);
 
   // Create new session upon successful generation
-  const createNewSession = useCallback((notes: string, material: StudyMaterial) => {
+  const createNewSession = useCallback((notes: string, material: StudyMaterial, extractedPdfText?: string) => {
     const initialFlashcardProgress: FlashcardProgressData = {
       currentIndex: 0,
       isFlipped: false,
@@ -96,6 +96,7 @@ export function useStudyPersistence() {
 
     const success = StudyStorage.save({
       originalNotes: notes,
+      extractedPdfText,
       material,
       flashcardProgress: initialFlashcardProgress,
       quizProgress: initialQuizProgress,
@@ -195,11 +196,66 @@ export function useStudyPersistence() {
     }
   }, []);
 
+  // Update only a single section of the study material within the active session
+  const updateSessionSection = useCallback((section: "summary" | "flashcards" | "quiz", content: any) => {
+    const current = StudyStorage.get();
+    if (!current) return;
+
+    const updatedMaterial = {
+      ...current.material,
+      [section]: content,
+    };
+
+    let flashcardProgress = current.flashcardProgress;
+    let quizProgress = current.quizProgress;
+
+    // Targeted progress reset to prevent errors when structure shifts
+    if (section === "flashcards") {
+      flashcardProgress = {
+        currentIndex: 0,
+        isFlipped: false,
+        bookmarks: current.flashcardProgress?.bookmarks || {},
+        difficultyStatus: current.flashcardProgress?.difficultyStatus || {},
+        viewedCards: [0],
+        isShuffled: false,
+        shuffledOrder: [],
+        filterBookmarks: false,
+      };
+    } else if (section === "quiz") {
+      quizProgress = {
+        currentIndex: 0,
+        selectedAnswer: null,
+        isAnswered: false,
+        mode: "quiz",
+        correctCount: 0,
+        incorrectCount: 0,
+        wrongQuestionsIndex: [],
+        activeQuestionsIndex: [],
+        durationStr: "00:00",
+        elapsedTimeOffset: 0,
+        startTime: Date.now(),
+      };
+    }
+
+    const success = StudyStorage.save({
+      ...current,
+      material: updatedMaterial,
+      flashcardProgress,
+      quizProgress,
+    });
+
+    if (success) {
+      const updated = StudyStorage.get();
+      setSession(updated);
+    }
+  }, []);
+
   return {
     session,
     isLoaded,
     relativeTime,
     createNewSession,
+    updateSessionSection,
     saveFlashcardProgress,
     saveQuizProgress,
     resetSession,

@@ -69,7 +69,7 @@ export function useGenerateStudy() {
 
   // Run the generation request
   const generate = useCallback(
-    async (notes: string, file: File | null, onSuccess: (data: StudyMaterial) => void) => {
+    async (notes: string, file: File | null, onSuccess: (data: StudyMaterial, extractedText?: string) => void) => {
       const trimmed = notes.trim();
       
       // 1. Validation Guard
@@ -99,6 +99,7 @@ export function useGenerateStudy() {
 
       try {
         let combinedNotes = trimmed;
+        let extractedText = "";
 
         if (file) {
           setLoadingText("Extracting PDF...");
@@ -124,7 +125,7 @@ export function useGenerateStudy() {
           }
 
           const extractData = await extractRes.json();
-          const extractedText = extractData.text;
+          extractedText = extractData.text;
 
           combinedNotes = `Attached Document Content:\n${extractedText}\n\n${trimmed ? `User Instructions:\n${trimmed}` : ""}`.trim();
           
@@ -146,7 +147,7 @@ export function useGenerateStudy() {
         // Ensure we only update state if this request is still the active one
         if (abortControllerRef.current === controller) {
           devLog("Study material generated successfully!");
-          onSuccess(resultData);
+          onSuccess(resultData, file ? extractedText : undefined);
           toast.success("✓ Study material generated", {
             id: toastId,
             description: "Your cards and quiz are ready.",

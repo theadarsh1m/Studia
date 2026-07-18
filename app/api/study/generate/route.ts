@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Parse request body
-    let body: { notes?: string };
+    let body: { notes?: string; currentMaterial?: any; refinementPrompt?: string };
     try {
       body = await request.json();
     } catch {
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { notes } = body;
+    const { notes, currentMaterial, refinementPrompt } = body;
     if (!notes || typeof notes !== "string" || !notes.trim()) {
       return NextResponse.json(
         { success: false, error: "Missing or invalid 'notes' field in request body." },
@@ -30,8 +30,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Call service layer
-    const data = await StudyService.generateStudyMaterial(notes, request.signal);
+    // 3. Call service layer (Generate or Refine)
+    let data;
+    if (currentMaterial && refinementPrompt) {
+      if (typeof refinementPrompt !== "string" || !refinementPrompt.trim()) {
+        return NextResponse.json(
+          { success: false, error: "Invalid 'refinementPrompt' field in request body." },
+          { status: 400 }
+        );
+      }
+      data = await StudyService.refineStudyMaterial(notes, currentMaterial, refinementPrompt, request.signal);
+    } else {
+      data = await StudyService.generateStudyMaterial(notes, request.signal);
+    }
 
     // 4. Return success response
     return NextResponse.json({
