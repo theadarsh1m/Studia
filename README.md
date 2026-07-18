@@ -1,6 +1,6 @@
 # aiStudi — AI-Powered Study Assistant
 
-[GitHub Repository](https://github.com/theadarsh1m/aiStudi)
+[GitHub Repository](https://github.com/theadarsh1m/aiStudi) | [Live Website](https://aistudi.vercel.app) | [Video Demo](https://drive.google.com/file/d/17QzKIjseO9Q6eZ6ySJmd6iP3lnCtxv1M/view?usp=sharing)
 
 **aiStudi** is a premium, fully interactive, and responsive educational product that transforms lecture notes, textbook passages, or uploaded documents into structured flashcards and quizzes using **Google Gemini 3.1 Flash Lite**. 
 
